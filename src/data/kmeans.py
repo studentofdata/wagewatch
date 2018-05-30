@@ -102,15 +102,6 @@ def kmeans_missing(X, n_clusters, max_iter=500):
     return distance, labels, centroids, X_hat
 
 
-def top_markets_by_property(number_of_markets, property_data_frame):
-    markets = property_data_frame.groupby(['CITYMARKET']).count().reset_index()
-    markets = markets.copy()
-    markets = markets.sort('PROPERTY_CODE',ascending=False)
-    top_markets = markets.head(number_of_markets)
-    return top_markets['CITYMARKET'].tolist()
-
-
-
 def filter_by(df, constraints):
     """Filter MultiIndex by sublevels."""
     indexer = [constraints[name] if name in constraints else slice(None)
@@ -143,8 +134,6 @@ def SetDistMat(X, n, k, means):
 
 # Returns the priority list in which objects are ordered by ascending benefit 
 # of best over worst assignment
-
-
 def Get_plst(assigned, distmat, full, n, k):
     plst = []
     for i in range(n):
@@ -164,8 +153,6 @@ def Get_plst(assigned, distmat, full, n, k):
             plst.append((i, bestkey, maxdist-mindist))
     plst.sort(key=lambda t:t[2])
     return plst
-
-
 
 def InitialAssignment(distmat, cluster_size, n, k):
     clusters = {}
@@ -208,84 +195,11 @@ def SortObj(X, clusters, means, distmat):
     objlst.sort(key=lambda t:t[2], reverse=True)
     return objlst
 
+"""Mostly useless in comparison to the rest of the code, but important"""
 def Transfer(obj, clufrom, cluto, clusters):
     clusters[clufrom].remove(obj)
     clusters[cluto].append(obj)
     return clusters
-
-def WriteResult(file, X, means, clusters):
-    fl = open(file, "w")
-    fl.write("REMARK 0   Result of k-means cluster:\n")
-    fl.write("REMARK 1   k = %d\n"%k)
-    fl.write("TER\n")
-    keys = sorted(clusters.keys())
-    i = 1
-    for key in keys:
-        for obj in clusters[key]:
-            fl.write("ATOM  %5d OW   WAT  %4d    %8.3f%8.3f%8.3f      %6.2f\n"\
-                    %(i, i, X[obj][0], X[obj][1], X[obj][2], key)) 
-            fl.write("TER\n")
-            i = i + 1
-    for c in enumerate(means):
-        fl.write("HETATM%5d Ar   HET  %4d    %8.3f%8.3f%8.3f      %6.2f\n"\
-                %(i, i, c[1][0], c[1][1], c[1][2], c[0]))
-        fl.write("TER\n")
-        i = i + 1
-    fl.write("END\n")
-    fl.close()
-    return
-
-
-
-"""Non Essential"""
-# This function will perform statistical analysis to the clustering results
-def ClusterStat(X, means, clusters, df, k):
-    # Average distance between means
-    means_avg = 0.
-    for i in range(k-1):
-        for j in range(i+1,k):
-            means_avg += GetDist(means[i], means[j])
-    means_avg /= (k*(k-1)/2.)
-    # Average distance between obj and mean in a cluster
-    obj2mean_avg = np.zeros(k)
-    # Variance of the distances between obj and mean in a cluster
-    obj2mean_var = np.zeros(k)
-    keys = sorted(clusters.keys())
-    for key in keys:
-        for i in clusters[key]:
-            obj2mean = GetDist(X[i], means[key])
-            obj2mean_avg[key] += obj2mean 
-            obj2mean_var[key] += obj2mean*obj2mean
-        obj2mean_avg[key] /= len(clusters[key])
-        obj2mean_var[key] /= len(clusters[key])
-        obj2mean_var[key] = np.sqrt(obj2mean_var[key])
-    # Average within cluster distances between objects
-    winclu_avg = np.zeros(k)
-    # Average of within cluster distances of all clusters
-    winclu_grandavg = 0.
-    for key in keys:
-        for i in clusters[key]:
-            x = X[i]
-            for j in clusters[key]:
-                if j>i:
-                    winclu_avg[key] += GetDist(x, X[j])
-        s = len(clusters[key])
-        winclu_avg[key] /= (s*(s-1)/2) 
-        winclu_grandavg += winclu_avg[key]
-    winclu_grandavg /= k
-    # write the summary 
-    print("average distance among means: %f"%means_avg)
-    #print("average distance from objects to the mean of a cluster:")
-    #for i in range(k):
-    #    print("cluster %i: %f"%(i, obj2mean_avg[i]))
-    #print("variance of distances from objects to the mean of a cluster:")
-    #for i in range(k):
-    #    print("cluster %i: %f"%(i, obj2mean_var[i]))
-    #print("within-cluster average distances:")
-    #for i in range(k):
-    #    print("cluster %i: %f"%(i, winclu_avg[i]))
-    print("grand average of within-cluster average distances: %f"%winclu_grandavg)
-    return 
 
 def run_equal_size_kmeans(X, n, k, cluster_size):
     # Set up the database of objects

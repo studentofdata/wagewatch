@@ -2,6 +2,7 @@ import os
 import re
 import config
 import constants
+import transform
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
@@ -11,14 +12,6 @@ import plotly as py
 files_location = config.data_source_file_location
 files = os.listdir(files_location)
 
-def top_markets_by_property(number_of_markets, property_data_frame):
-	""" A function which returns the top number_of_markets per dataframe """
-	markets = property_data_frame.groupby(['CITYMARKET']).count().reset_index()
-	markets = markets.copy()
-	markets = markets.sort('PROPERTY_CODE',ascending=False)
-	top_markets = markets.head(number_of_markets)
-	return top_markets['CITYMARKET'].tolist()
-
 
 def extract_data_ci(years):
 	pass
@@ -27,17 +20,17 @@ def extract_data_pi(years):
 def extract_data_gi(years):
 	pass
 
-
 ###############################################
 # Read in the datasets, this would be a good future location 
 # to abstract away from 2016 and have a general year or subset here. 
 # Or to create a function which would be given the desired frame
 # to be processed.
 
+
 def extract_all_lazy():
 	""" This is a temporary file which utilizes the 2016 data.
 	In the future this should use database connection and call directly from the DB.
-	Returns a moderately scrubbed dataframe. Moderately scrubbed is subsetting and rows. """
+	Returns a dictionary of data frames that have been moderately transformed. Moderately transformed is subsetting rather than direct manipulation. """
 
 	#Construct filepaths: Data COMP_INFO_1
 	data_ci1_name = "DATA_2016_COMP_INFO_1.csv"
@@ -46,7 +39,7 @@ def extract_all_lazy():
 	data_ci2_name = "DATA_2016_COMP_INFO_2.csv"
 	data_ci2_fullname = os.path.join(files_location, data_ci2_name)
 	#Data PROPERTY INFO
-	data_pi_name = "Data_2016_PROPERTY_INFO.csv"
+	data_pi_name = "DATA_2016_PROPERTY_INFO_ST.csv"
 	data_pi_fullname = os.path.join(files_location, data_pi_name)
 	#Data General Info
 	data_gi_name = "DATA_2016_GENERAL_INFO.csv"
@@ -54,7 +47,7 @@ def extract_all_lazy():
 
 	#Read & Process COMP_INFO
 	data_ci1 = pd.read_csv(data_ci1_fullname, skiprows=2, usecols = constants.keep_columns_CI, encoding='ISO-8859-1')
-	data_ci2 = pd.read_csv(data_ci2_fullname, skiprows = 2, usecols = constants.keep_columns_CI, encoding='ISO-8859-1')
+	data_ci2 = pd.read_csv(data_ci2_fullname, skiprows=2, usecols = constants.keep_columns_CI, encoding='ISO-8859-1')
 
 	data_ci = data_ci1.append(data_ci2)
 	data_ci['QUESTION'] = data_ci['QUESTION'].replace(constants.ci_mapping)
@@ -66,7 +59,9 @@ def extract_all_lazy():
 	data_ci = data_ci.reset_index()
 
 	#Read & Process Property Info data
-	data_pi = pd.read_csv(data_pi_fullname, skiprows = 2, usecols = constants.keep_columns_PI, encoding='ISO-8859-1')
+	data_pi = pd.read_csv(data_pi_fullname, usecols = constants.keep_columns_PI, encoding='ISO-8859-1')
+	#survey_type_transformed = transform.surveytype_categorical(data_pi)
+	#data_pi = pd.merge(data_pi, survey_type_transformed, on=['PROPERTY_CODE'])
 
 	#Read & Process General Info
 	data_gi = pd.read_csv(data_gi_fullname, skiprows = 2, usecols = constants.keep_columns_GI, encoding='ISO-8859-1')
@@ -87,7 +82,10 @@ def extract_all_lazy():
 	d_ci = d_ci[~(d_ci['PROPERTY_NAME'].isin(constants.del_rows_property_name))]
 	d_ci['POSITION'] = d_ci['POSITION'].astype(str)
 
+	payload = {}
+	payload['gi'] = data_gi
+	payload['pi'] = data_pi
+	payload['ci'] = data_ci
+	payload['d_ci'] = d_ci
 
-	return d_ci
-
-
+	return payload
